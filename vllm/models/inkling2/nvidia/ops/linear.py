@@ -131,7 +131,7 @@ def _k_group_kernel(
 ):
     if SPLIT and tl.program_id(1) == 0:
         _prefetch_k_group_tile(W, N, K, BN, tl.program_id(0), tl.program_id(2))
-    tl.extra.cuda.gdc_wait()
+    pass
     _k_group_tile(
         X,
         W,
@@ -150,7 +150,7 @@ def _k_group_kernel(
 
 @triton.jit
 def _k_group_sum_kernel(Partials, Y, MN, GROUPS: tl.constexpr, BLOCK: tl.constexpr):
-    tl.extra.cuda.gdc_wait()
+    pass
     offs = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     mask = offs < MN
     total = tl.load(Partials + offs, mask)
@@ -178,9 +178,9 @@ def _k_group_tma_kernel(
     GROUP_TILES: tl.constexpr = 1024 // BK
     rows = tl.program_id(1) * BM
     cols = tl.program_id(0) * BN
-    tl.extra.cuda.gdc_wait()
+    pass
     if LAUNCH_DEPENDENTS:
-        tl.extra.cuda.gdc_launch_dependents()
+        pass
     total = tl.zeros((BM, BN), tl.float32)
     partial = tl.zeros((BM, BN), tl.float32)
     for tile in tl.range(TILES, warp_specialize=True):
@@ -234,7 +234,7 @@ def k_group_partials(
             num_warps=4 if block_n == 64 else 8,
             num_stages=2 if sm120 else 4 if block_n == 64 else 3,
             enable_fp_fusion=False,
-            launch_pdl=True,
+            launch_pdl=False,
         )
         return out
     block_m = 16 if tokens <= 128 else 64
@@ -268,7 +268,7 @@ def k_group_partials(
         num_warps=num_warps,
         num_stages=num_stages,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return out
 
@@ -286,6 +286,6 @@ def linear_k_groups(
         return partials[0]
     out = torch.empty(partials.shape[1:], dtype=out_dtype, device=x.device)
     _k_group_sum_kernel[(triton.cdiv(out.numel(), 1024),)](
-        partials, out, out.numel(), partials.shape[0], 1024, launch_pdl=True
+        partials, out, out.numel(), partials.shape[0], 1024, launch_pdl=False
     )
     return out

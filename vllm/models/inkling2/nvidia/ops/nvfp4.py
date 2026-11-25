@@ -251,7 +251,7 @@ def _quantize_row(X, Values, Scales, Amax, row, K: tl.constexpr, BLOCK: tl.const
 def _nvfp4_quantize_kernel(
     X, Values, Scales, Amax, M, K: tl.constexpr, BLOCK: tl.constexpr
 ):
-    tl.extra.cuda.gdc_wait()
+    pass
     for row in range(tl.program_id(0), M, tl.num_programs(0)):
         _quantize_row(X, Values, Scales, Amax, row, K, BLOCK)
 
@@ -282,6 +282,6 @@ def nvfp4_quantize(x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.T
         BLOCK=block,
         num_warps=num_warps,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return values, scales, amax

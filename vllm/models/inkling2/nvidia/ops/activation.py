@@ -145,7 +145,7 @@ def _situ_quantize_kernel(
     # scales are read before waiting for the gate/up GEMM, which launches this
     # kernel only after its own wait for the routing kernel.
     if LAUNCH_DEPENDENTS:
-        tl.extra.cuda.gdc_launch_dependents()
+        pass
     num_rows = tl.load(NumRows)
     r = tl.program_id(0)
     row, gamma, w_amax = _row_inputs(
@@ -154,7 +154,7 @@ def _situ_quantize_kernel(
     denominator = 0.0
     if NVFP4:
         denominator = 1536.0 * tl.load(WDenominator)
-    tl.extra.cuda.gdc_wait()
+    pass
     start = tl.program_id(1) * (HEAD + TAIL)
     while r < num_rows:
         head = _situ(X, row, start, gamma, N, HEAD, GATE_CAP, UP_CAP)
@@ -273,6 +273,6 @@ def swiglu_quantize(
         num_warps=num_warps,
         maxnreg=maxnreg,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return values, scales, row_scales

@@ -623,7 +623,7 @@ def _fused_route_kernel(
     bias = _load_bias(Bias, E, E_POW2)
     lo = tl.load(ExpertBounds)
     hi = tl.load(ExpertBounds + 1)
-    tl.extra.cuda.gdc_wait()
+    pass
     if pid < ROUTERS:
         _k_group_tile(
             X,
@@ -747,8 +747,8 @@ def _route_tokens_kernel(
     bias = _load_bias(Bias, E, E_POW2)
     lo = tl.load(ExpertBounds)
     hi = tl.load(ExpertBounds + 1)
-    tl.extra.cuda.gdc_wait()
-    tl.extra.cuda.gdc_launch_dependents()
+    pass
+    pass
     token = tl.full((1,), tl.program_id(0), tl.int64)
     padding = None
     if Padding is not None:
@@ -796,9 +796,9 @@ def _scatter_kernel(
     token = tl.program_id(0).to(tl.int64)
     # The tokens are complete before the routing kernel starts.
     quantized = _quantize_x(X, token, H, NVFP4, HEAD, TAIL)
-    tl.extra.cuda.gdc_wait()
+    pass
     if LAUNCH_DEPENDENTS:
-        tl.extra.cuda.gdc_launch_dependents()
+        pass
     dst, local = _place_rows(
         Starts, Ids, Ranks, Weights, Src2Dst, Gammas, Rows, token, TOPK, LOCAL_POW2
     )
@@ -843,7 +843,7 @@ def _scatter_nvfp4_kernel(
     x = X + token * H
     # The tokens are complete before the routing kernel starts.
     amax = _row_amax(x, H)
-    tl.extra.cuda.gdc_wait()
+    pass
     dst, local = _place_rows(
         Starts, Ids, Ranks, Weights, Src2Dst, Gammas, Rows, token, TOPK, LOCAL_POW2
     )
@@ -971,7 +971,7 @@ def route(
             num_stages=4,
             enable_fp_fusion=False,
             launch_cooperative_grid=True,
-            launch_pdl=True,
+            launch_pdl=False,
         )
         return outputs, quantized
 
@@ -1002,7 +1002,7 @@ def route(
         TILE=plan.tile,
         MAX_CTAS=plan.max_ctas,
         num_warps=4 if tokens <= 128 else 1,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     if nvfp4 and tokens >= NVFP4_SCATTER_MIN_TOKENS:
         _scatter_nvfp4_kernel[(tokens,)](
@@ -1023,7 +1023,7 @@ def route(
             TILE=plan.tile,
             num_warps=1,
             enable_fp_fusion=False,
-            launch_pdl=True,
+            launch_pdl=False,
         )
         return outputs, quantized
     _scatter_kernel[(tokens,)](
@@ -1049,7 +1049,7 @@ def route(
         LAUNCH_DEPENDENTS=tokens <= LAUNCH_DEPENDENTS_MAX_TOKENS,
         num_warps=2,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return outputs, quantized
 
@@ -1069,9 +1069,9 @@ def _combine_kernel(
     PUSH: tl.constexpr,
     HALO_ROWS: tl.constexpr,
 ):
-    tl.extra.cuda.gdc_wait()
+    pass
     if LAUNCH_DEPENDENTS:
-        tl.extra.cuda.gdc_launch_dependents()
+        pass
     token = tl.program_id(0).to(tl.int64)
     cols = tl.program_id(1) * BLOCK + tl.arange(0, BLOCK)
     acc = tl.zeros((BLOCK,), tl.float32)
@@ -1142,5 +1142,5 @@ def _combine(
         sp is not None,
         HALO_ROWS,
         num_warps=2,
-        launch_pdl=True,
+        launch_pdl=False,
     )

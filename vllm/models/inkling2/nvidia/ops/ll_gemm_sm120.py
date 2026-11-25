@@ -45,7 +45,7 @@ def _ll_gemm_kernel(
     `s`. With `SPLIT > 1` it writes fp32 partials to `P` `[SPLIT, B, MP, N]`;
     the last of the tile's programs to finish (counted in `C`, reset to 0
     after) sums them in split order, so results are deterministic."""
-    tl.extra.cuda.gdc_wait()
+    pass
     pid_n = tl.program_id(0)
     b = tl.program_id(1)
     s = tl.program_id(2)
@@ -90,7 +90,7 @@ def _ll_gemm_kernel(
             acc.to(Y.dtype.element_ty),
             (rows[:, None] < M) & (cols[None, :] < N),
         )
-    tl.extra.cuda.gdc_launch_dependents()
+    pass
 
 
 @triton.jit
@@ -128,7 +128,7 @@ def _qkv_bmm_kernel(
     """Columns `[0, S1)` of `Y` are `XQ @ W.T`, `[S1, S2)` `XK` and `[S2, N)`
     `XV`. A tile spanning a boundary runs both inputs' dots and picks per
     column (the second input's loads hit L2)."""
-    tl.extra.cuda.gdc_wait()
+    pass
     n0 = tl.program_id(0) * BN
     n1 = tl.minimum(n0 + BN, N) - 1
     b_lo = (n0 >= S1).to(tl.int32) + (n0 >= S2).to(tl.int32)
@@ -159,7 +159,7 @@ def _qkv_bmm_kernel(
         acc.to(Y.dtype.element_ty),
         (rows[:, None] < M) & (cols[None, :] < N),
     )
-    tl.extra.cuda.gdc_launch_dependents()
+    pass
 
 
 class _Config(NamedTuple):
@@ -237,7 +237,7 @@ def _ll_gemm(
         MP=_MP,
         num_warps=cfg.num_warps,
         num_stages=cfg.num_stages,
-        launch_pdl=True,
+        launch_pdl=False,
     )
 
 
@@ -301,7 +301,7 @@ def qkv_bmm(
         MP=_MP,
         num_warps=4,
         num_stages=4,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return out
 

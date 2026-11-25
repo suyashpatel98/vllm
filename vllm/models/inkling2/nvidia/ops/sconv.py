@@ -248,7 +248,7 @@ def _conv(
         cached1 = _cached_tap(*taps, 2)
         cached2 = _cached_tap(*taps, 1)
         cached3 = _cached_tap(*taps, 0)
-        tl.extra.cuda.gdc_wait()
+        pass
 
     dtype = cache_ptr.dtype.element_ty
     cur = tl.load(x_ptr + toff[:, None] * stride_x + coff[None, :], mask=tc_mask)
@@ -335,7 +335,7 @@ def _sconv_kernel(
     first = tl.program_id(0) * BT
     tile_reads_cache = True
     if SKIP_IDLE_CACHE:
-        tl.extra.cuda.gdc_wait()
+        pass
         # Request starts are non-decreasing: no token of the tile is among the
         # first W - 1 of its request unless the last token's request starts
         # after first - (W - 1).
@@ -458,7 +458,7 @@ def short_conv(
         SKIP_IDLE_CACHE=prefill,
         num_warps=4,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     return out
 
@@ -554,9 +554,9 @@ def _attn_prologue_kernel(
     QR_TOKENS: tl.constexpr,
     FUSE_QR: tl.constexpr,
 ):
-    tl.extra.cuda.gdc_wait()
+    pass
     # The decode attention kernel prefetches cached keys meanwhile.
-    tl.extra.cuda.gdc_launch_dependents()
+    pass
     # Programs (tile, head, 0 | 1) run the K | V conv of one KV head; programs
     # (tile, head, 2) clip q of QR_TOKENS of the tile's tokens and programs
     # (tile, head, 3 + c) their r and column block c of the relative logits.
@@ -700,7 +700,7 @@ def _qr_rel_kernel(
         BLOCK_HQ,
         BLOCK_E,
     )
-    tl.extra.cuda.gdc_wait()
+    pass
 
 
 @triton.jit
@@ -980,7 +980,7 @@ def attention_prologue(
         FUSE_QR=not qr_tokens,
         num_warps=4,
         enable_fp_fusion=False,
-        launch_pdl=True,
+        launch_pdl=False,
     )
     if qr_tokens:
         _qr_rel_kernel[(triton.cdiv(num_tokens, qr_tokens), qr_blocks)](
@@ -1012,5 +1012,5 @@ def attention_prologue(
             QR_TOKENS=qr_tokens,
             num_warps=4,
             enable_fp_fusion=False,
-            launch_pdl=True,
+            launch_pdl=False,
         )
